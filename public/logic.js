@@ -1,43 +1,12 @@
 /*global document, addEventListener*/
 /*eslint no-undef: "error"*/
-const GAME_START_AT = new Date()
 
 function HotLog(txt) {
   document.getElementById("hotLog").innerHTML = txt;
 }
 
-function getFormatedTime(shortMilisec = true, showZone = false)
-{
-  const tz = -Math.floor(GAME_START_AT.getTimezoneOffset()/60)
-  const SECOND = 1000
-  const MINUTE = 60* SECOND
-  const HOUR = 60 * MINUTE
-  const DAY = 24 * HOUR
-  
-  let d = Date.now() + tz * HOUR
-  d = d - Math.floor(d / DAY) * DAY
-  let h = Math.floor(d / HOUR)
-  d = d - h*HOUR
-  let m = Math.floor(d / MINUTE)
-  d = d - m*MINUTE
-  let s = Math.floor(d / SECOND)
-  d = d - s*SECOND
-
-  showZone = showZone?(tz<0?"-":"+")+("00"+tz).slice(-2)+"z":""
-  shortMilisec = "." + (shortMilisec?("00" + Math.floor(d/10)).slice(-2):("000" + d).slice(-3))
-  return showZone+("00" + h).slice(-2)+":"+("00" + m).slice(-2)+":"+("00" + s).slice(-2)+shortMilisec
-}
-function LazyLog(txt, newLine = true, timeStamp = true) {
-  let str = (newLine?"\r\n":"") + (timeStamp?"["+ getFormatedTime()+"]: ":"") + txt;
-  document.getElementById("lazyLog").innerHTML += str;
-  if(SETTINGS.autoScrollLazyLog) document.getElementById("lazyLog").scrollTo(0,document.getElementById("lazyLog").scrollHeight);
-}
-document.getElementById("lazyLog").addEventListener('scroll', function(/*e*/) {
-  SETTINGS.autoScrollLazyLog = document.getElementById("lazyLog").scrollTop + document.getElementById("lazyLog").clientHeight == document.getElementById("lazyLog").scrollHeight
-});
-
 function lerp(v1, v2, w) {
-    return v1 + w * (v2 - v1); // v1 * (1 - w) + v2 * w;
+    return v1 + w * (v2 - v1);
 }
 
 var canvas = document.getElementById("canvas")
@@ -97,7 +66,7 @@ var map = {
 };
 
 var fps = 1000/200;
-var lps = 1000/15; // как правильно называть?
+var lps = 1000/15; // how call it right?
 
 const UNITS = {
   1: {name: "settler", attack: 0, defense: 1, moves: 1 },
@@ -139,7 +108,7 @@ var players = [
     control: {
       selectedUint: 0,
       camera: {x:canvas.width/2, y:canvas.height/2},
-      mouse: {x:0, y:0, hold: null, cell:{x:0, y:0}},
+      mouse: {x:0, y:0, hold: null, cell:{x:0, y:0}, polar:{angular: 0, distance: 0}}
     },
     settings: {
       tileSize: 24, // size to fullHD = 48
@@ -147,6 +116,18 @@ var players = [
       tileScaleTimeExp: 0,
       scaleSpeed: 125, // sec to point
       showGridInfo: null
+    },
+    mouseCalcCell() {
+      this.control.mouse.cell.x = Math.floor(((this.control.camera.x-canvas.width/2) + this.control.mouse.x) / this.settings.tileSize)
+      this.control.mouse.cell.y = Math.floor(((this.control.camera.y-canvas.height/2) + this.control.mouse.y) / this.settings.tileSize)        
+    },
+    mouseCalcPolar() {
+      let dx = - this.control.mouse.x + canvas.width/2 //this.control.camera.x
+      let dy = this.control.mouse.y - canvas.height/2 //- this.control.camera.y
+      let theta  = Math.atan2(dy, dx) + Math.PI
+      
+      this.control.mouse.polar.angular = theta;
+      this.control.mouse.polar.distance = Math.sqrt(dx*dx + dy*dy)
     }
   },
   {
@@ -165,7 +146,7 @@ var players = [
     control: {
       selectedUint: 0,
       camera: {x:canvas.width/2, y:canvas.height/2},
-      mouse: {x:0, y:0, hold: null, cell:{x:0, y:0}},
+      mouse: {x:0, y:0, hold: null, cell:{x:0, y:0}, polar:{angular: 0, distance: 0}}
     },
     settings: {
       tileSize: 24, // size to fullHD = 48
@@ -173,6 +154,18 @@ var players = [
       tileScaleTimeExp: 0,
       scaleSpeed: 125, // sec to point
       showGridInfo: null
+    },
+    mouseCalcCell() {
+      this.control.mouse.cell.x = Math.floor(((this.control.camera.x-canvas.width/2) + this.control.mouse.x) / this.settings.tileSize)
+      this.control.mouse.cell.y = Math.floor(((this.control.camera.y-canvas.height/2) + this.control.mouse.y) / this.settings.tileSize)        
+    },
+    mouseCalcPolar() {
+      let dx = - this.control.mouse.x + canvas.width/2 //this.control.camera.x
+      let dy = this.control.mouse.y - canvas.height/2 //- this.control.camera.y
+      let theta  = Math.atan2(dy, dx) + Math.PI
+      
+      this.control.mouse.polar.angular = theta;
+      this.control.mouse.polar.distance = Math.sqrt(dx*dx + dy*dy)
     }
   }
 ]
@@ -181,7 +174,6 @@ var SETTINGS = {
   tileMinSize: 48/4, // size to fullHD = 24
   tileMaxSize: 54, // size to fullHD = 108
   tileDefaultSize: 24, // fullHD x2
-  autoScrollLazyLog: true
 }
 
 
@@ -191,62 +183,54 @@ setInterval(function() {
   
   if (timePass < lps) {
       return;
-  } else if (timePass > 4 * lps) // Жесткое отставание
+  } else if (timePass > 4 * lps) // hard mistiming
   {
     lastTimeLogic = Date.now();
       timePass = 4 * lps;
   }
 
   
-  lastTimeLogic += timePass; // завершен обсчет логики состояний на момент НАЧАЛА функции
+  lastTimeLogic += timePass; // state logic computation completed at START of function
 }, 10);
 
-document.addEventListener('mousemove', onMouseUpdate, false); // можно от канваса, но толку не много
+document.addEventListener('mousemove', onMouseUpdate, false);
 document.addEventListener('mouseenter', onMouseUpdate, false);
 
-// var firstDBG = true
 function onMouseUpdate(e) {
   // if (e.toElement != canvas) return;
   
   game.control.mouse.x = e.x - canvas.offsetLeft;
   game.control.mouse.y = e.y - canvas.offsetTop;
   
-  game.control.mouse.cell.x = Math.floor(((game.control.camera.x-canvas.width/2) + game.control.mouse.x) / game.settings.tileSize)
-  game.control.mouse.cell.y = Math.floor(((game.control.camera.y-canvas.height/2) +game.control.mouse.y) / game.settings.tileSize)
+  game.player.mouseCalcCell()
+  game.player.mouseCalcPolar()
+
   if (game.control.mouse.hold != null)
   {
     game.control.camera.x = game.control.mouse.hold.x - game.control.mouse.x
     game.control.camera.y = game.control.mouse.hold.y - game.control.mouse.y
   }
-  // let dx = mouseX - hero.pos.x;
-  // let dy = hero.pos.y - mouseY;
-  // let tmp = Math.atan(dy / dx);
-  // if (dx < 0) tmp -= Math.PI / 2;
-  // else tmp += Math.PI / 2;
-  // hero.faceAngle = tmp;
 }
 
 var lastTimeGraphic = Date.now();
 setInterval(function() {
-  let timePass = Date.now() - lastTimeGraphic; // я бы поменял на логику "nextTimeRender > Date.now()"
+  let timePass = Date.now() - lastTimeGraphic; // guess will better change "nextTimeRender > Date.now()"
   if (timePass < fps) {
       return;
   }
 
   if (game.settings.tileScaleTimeExp > 0)
   {
-    //game.control.camera.x += (settings.tileSize < settings.tileSizeTarget?1:-1) * (canvas.width/2/settings.tileSize)
     if (game.settings.tileScaleTimeExp > game.settings.scaleSpeed/10) 
     {
       game.settings.tileScaleTimeExp -= timePass
       if (game.settings.tileScaleTimeExp < 0) game.settings.tileScaleTimeExp = 0
       game.control.camera.x -= game.control.mouse.cell.x *lerp(0, game.settings.tileSize - game.settings.tileSizeTarget, 1 - game.settings.tileScaleTimeExp/2/game.settings.scaleSpeed)
       game.control.camera.y -= game.control.mouse.cell.y *lerp(0, game.settings.tileSize - game.settings.tileSizeTarget, 1 - game.settings.tileScaleTimeExp/2/game.settings.scaleSpeed)
+      // not good centring on a cam, need to upgrade
       game.settings.tileSize = lerp(game.settings.tileSize, game.settings.tileSizeTarget, 1 - game.settings.tileScaleTimeExp/2/game.settings.scaleSpeed)
-      //settings.tileSize += (settings.tileSize < settings.tileSizeTarget?1:-1) * (settings.tileScaleTimeExp > 0 ? timePass / settings.scaleSpeed : (timePass - settings.tileScaleTimeExp) / settings.scaleSpeed)
     } else {
       game.settings.tileSize = game.settings.tileSizeTarget
-      //if (settings.tileSize % 2 != 0) settings.tileSize -= 1;
       game.settings.tileScaleTimeExp = 0
     }
   }
@@ -256,10 +240,7 @@ setInterval(function() {
   ctx.font = "11px bold Lucida Console";
   for (let i = Math.floor((game.control.camera.y - canvas.height/2)/game.settings.tileSize); i < (game.control.camera.y + canvas.height/2)/game.settings.tileSize; i++) {
     for (let j = Math.floor((game.control.camera.x - canvas.width/2)/game.settings.tileSize); j < (game.control.camera.x + canvas.width/2)/game.settings.tileSize; j++) {
-      //LazyLog("!!"+i+";"+j);
       if (i < 0 || i >= map.tiles.length || j < 0 || j >= map.tiles[i].length) {continue;}
-      // if (map.tiles[i][j] == 1) ctx.fillStyle = "#356030";
-      // else if (map.tiles[i][j] == 0) ctx.fillStyle = "#354560";
       ctx.fillStyle = TILES[map.tiles[i][j]].color
       ctx.fillRect(canvas.width/2 -game.control.camera.x + j * game.settings.tileSize, canvas.height/2 -game.control.camera.y + i * game.settings.tileSize, game.settings.tileSize, game.settings.tileSize);
 
@@ -300,40 +281,27 @@ setInterval(function() {
   ctx.fillRect(canvas.width/2 -game.control.camera.x + game.control.mouse.cell.x * game.settings.tileSize, canvas.height/2 -game.control.camera.y + game.control.mouse.cell.y * game.settings.tileSize, game.settings.tileSize, game.settings.tileSize)
 
   HotLog('Keys:\n' +
-      // 'L:' + game.control.isGoLeft + ', R:' + game.control.isGoRight + ', U:' + game.control.isGoUp + ', D:' + game.control.isGoDown + '\n' +
       'Player: "' + game.player.name +'", zoom:' + (game.settings.tileSize/ SETTINGS.tileDefaultSize * 100).toFixed(2) + '%, et:' + game.settings.tileScaleTimeExp + ', tts:' + game.settings.tileSizeTarget + '\n' +
       'Cam [' + game.control.camera.x.toFixed(2) + ', ' + game.control.camera.y.toFixed(2) + '], Face ' + (180 / Math.PI * 0).toFixed(2) + '°\n' +
-      'Mouse [' + game.control.mouse.x + ',' + game.control.mouse.y + '], cell[' + game.control.mouse.cell.x + ', ' + game.control.mouse.cell.y + ']');
+      'Mouse [' + game.control.mouse.x + ',' + game.control.mouse.y + '], cell[' + game.control.mouse.cell.x + ', ' + game.control.mouse.cell.y + '], polar[' + (180 / Math.PI * game.control.mouse.polar.angular).toFixed(3) + '°,' + game.control.mouse.polar.distance.toFixed(2) + ']');
   
-  lastTimeGraphic += timePass; // закончили отрисовку данных на момент начала функции
+  lastTimeGraphic += timePass; // finished drawing data at the start of the function
 }, 10);
 
 function moverSet(e) {
-  // if (firstDBG)
-  // {
-  //   firstDBG = false
-  //   for (var key in e) {
-  //     LazyLog(key + ": " + e[key])
-  //   }
-  // }
   // if (e.ctrlKey || e.altKey) return
-  if ('type' in e && e['type'] == 'keydown') { LazyLog("key pressed '"+e.key+"'") }
+  if ('type' in e && e['type'] == 'keydown') { console.log("key pressed '"+e.key+"'") }
   switch (e.key) {
     case ' ':
       game.settings.showGridInfo = game.settings.showGridInfo==null?'num': game.settings.showGridInfo=='num'?'type':null;
-      // map.tiles.forEach((elem) => {
-      //   LazyLog(elem.join());
-      // })
       break
     case '-':
-      //if (settings.tileSize > 48/4) { settings.tileSize -= 2 }
       if (game.settings.tileSizeTarget > SETTINGS.tileMinSize) {
         game.settings.tileSizeTarget -= 2
         game.settings.tileScaleTimeExp = 250
       }
       break
     case '=': case '+':
-      //if (settings.tileSize < 54) { settings.tileSize += 2 }
       if (game.settings.tileSizeTarget < SETTINGS.tileMaxSize) {
         game.settings.tileSizeTarget += 2
         game.settings.tileScaleTimeExp = 250
@@ -383,15 +351,7 @@ addEventListener("keydown", moverSet);
 addEventListener("keyup", moverReset);
 
 canvas.onmousedown = function(e) {
-  /*if (!e.which && e.button) { // если which нет, но есть button... (IE8-)
-  if (e.button & 1) e.which = 1; // левая кнопка
-  else if (e.button & 4) e.which = 2; // средняя кнопка
-  else if (e.button & 2) e.which = 3; // правая кнопка
-  }*/
-  game.control.mouse.hold = {x: e.pageX + game.control.camera.x , y: e.pageY + game.control.camera.y }
-  //alert( e.which + ' (' + e.clientX + ','+ e.clientY +')' );
-  //if(hero.fireCooldown <= 0) hero.isFire = true;
-  // рисуем мышь
+  game.control.mouse.hold = {x: e.layerX + game.control.camera.x , y: e.layerY + game.control.camera.y }
 }
 document.body.onmouseup = function(/*e*/) {
   game.control.mouse.hold = null
@@ -400,7 +360,3 @@ document.body.onmouseup = function(/*e*/) {
 canvas.onmousewheel = function(e) {
   moverSet({key: e.wheelDelta>0?'=':'-'})
 }
-
-// Need:
-// • uncrawl only if normal heigth is posible. else uncrawl asap
-// • how to improve jump in right cave? try to rejump after getting more space? but dont forget about middle down pit -> u need to continue jump when it possible 
