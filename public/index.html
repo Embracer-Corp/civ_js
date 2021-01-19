@@ -12,6 +12,11 @@
     <p></p>
     <textarea disabled='true' rows='22' cols='80' id='hotLog'></textarea>
     <!--<textarea disabled='true' readonly='true' wrap='soft' rows='22' cols='80' id='lazyLog'>Log:</textarea>-->
+
+    <script src="./js/socket-client.js"></script>
+    <script>
+        const socket = io(window.location.href);
+    </script>
+    <script src="logic.js"></script>
 </body>
-<script src="logic.js"></script>
 </html>
