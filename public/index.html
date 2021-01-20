@@ -8,15 +8,13 @@
     <title>Test</title>
 </head>
 <body>
-    <canvas id='canvas' style="background: gray;">Обновите браузер</canvas>
+    <!-- <input id='input'/> -->
+    <canvas id='canvas' style="background: gray;"></canvas>
     <p></p>
     <textarea disabled='true' rows='22' cols='80' id='hotLog'></textarea>
-    <!--<textarea disabled='true' readonly='true' wrap='soft' rows='22' cols='80' id='lazyLog'>Log:</textarea>-->
+    <!-- <textarea disabled='true' readonly='true' wrap='soft' rows='22' cols='80' id='lazyLog'>Log:</textarea> -->
 
     <script src="./js/socket-client.js"></script>
-    <script>
-        const socket = io(window.location.href);
-    </script>
-    <script src="logic.js"></script>
+    <script src="room.js"></script>
 </body>
 </html>
