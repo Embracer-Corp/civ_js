@@ -1,12 +1,11 @@
-var canvas = document.getElementById("canvas")
-var ctx = canvas.getContext("2d");
-
-canvas.width = 500;
-canvas.height = 500;
-
+const canvas = document.getElementById("canvas")
+const ctx = canvas.getContext("2d");
 const socket = io(window.location.href);
+const exampleNames = ["test", "john", "default", "anykey", "subzero", "no1"]
 
 var players = []
+var nickname = null
+
 function visual_update() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#333";
@@ -16,7 +15,7 @@ function visual_update() {
   ctx.fillStyle = "#549423";
   ctx.fillRect(20,20,150,50)
   ctx.fillStyle = "#ccc";
-  ctx.fillRect(20,130,400,140)
+  ctx.fillRect(20,130,350,140)
   ctx.fillText("Players:", 30, 110)
   ctx.fillStyle = "#B3370B";
   ctx.fillRect(20,430,150,50)
@@ -31,38 +30,62 @@ function visual_update() {
   ctx.fillText("Connect", 55, 50)
   ctx.fillText("Start", 65, 460)
 }
-visual_update()
 
-socket.on('data', (data) => {
-  console.log(data)
-  if ('players' in data)
-  {
-    players = data.players
-  }
+function init()
+{
+  canvas.width = 400;
+  canvas.height = 500;//755;
+
+  document.getElementById("hotLog").innerHTML = `Chat (${new Date().toLocaleString()}):`
   visual_update()
-})
 
-socket.on('registered', (data) => {
-  if (data == null) { alert("Wrong symbols in a nickname") } //something gonna wrong
-  nickname = data
-})
+  // --- EVENTS ---
 
-const names = ["test", "john", "default", "anykey", "subzero", "no1"]
-var nickname = null
-canvas.onmousedown = function(e) {
-  if (e.layerX > 20 && e.layerX < 20+150 && e.layerY > 20 && e.layerY < 20+50) {
-    let item = names[Math.floor(Math.random() * names.length)];
-    let nick = prompt("Enter your nick: ", item)
-    // let input = document.getElementById("input")
-    // input.focus()
-    // input.click()
-    //document.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE); // can't find more info
-  
-    if (nick != null) {
-      socket.emit('hello', { name: nick })
+  socket.on('players_info', (players) => {
+    console.log(players, this.players)
+    
+    this.players = players
+    visual_update()
+  })
+
+  socket.on('chat', (message) => {
+    console.log('host->chat:', message)
+    document.getElementById("hotLog").innerHTML += "\r\n" + message
+  })
+
+  socket.on('registered', (regNick) => {
+    if (regNick == null) { alert("Wrong symbols in a nickname") } //something gonna wrong
+    nickname = regNick
+  })
+
+  socket.on('disconnect', () => { console.log("FAIIIIL") })
+
+  document.onmousedown = function(e) {
+    if (e.toElement == canvas) {
+      if (e.layerX > 20 && e.layerX < 20+150 && e.layerY > 20 && e.layerY < 20+50) {
+        let item = exampleNames[Math.floor(Math.random() * exampleNames.length)];
+        let nick = prompt("Enter your nick:", item)
+        // let input = document.getElementById("input")
+        // input.focus()
+        // input.click()
+        //document.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE); // can't find more info
+      
+        if (nick != null) {
+          socket.emit('register', { name: nick })
+        }
+      }
+      else if(e.layerX > 20 && e.layerX < 20+150 && e.layerY > 430 && e.layerY < 430+50) {
+        //console.log("wait")
+        onGameStart()
+      }
+    } else {
+      let message = prompt("Enter the message:")
+
+      if (message != null) {
+        socket.emit('chat', message)
+      }
     }
   }
-  else if(e.layerX > 20 && e.layerX < 20+150 && e.layerY > 430 && e.layerY < 430+50) {
-    console.log("wait")
-  }
 }
+
+init()

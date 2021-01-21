@@ -26,28 +26,47 @@ function broadcast(signal, data, except = null) {
   }
 }
 
+var chatLog = []
+
 io.on('connection', (socket) => {
   clients[socket.id] = {socket: socket}
   console.log(`a user connected, id:${socket.id}, client.id:${socket.client.id}. COUNT: ${Object.keys(clients).length}`);
 
-  socket.emit('data', {players: getClientNames()})
+  socket.emit('players_info', getClientNames())
+  chatLog.forEach(str => {
+    socket.emit('chat', str)
+  })
 
-  socket.on('hello', data => {
-    console.log(data);
+  socket.on('register', regData => {
+    // name filtering [size, symbols, special name, ...]
+    // socket.emit('registered', null)
+    // return
+    console.log('register:', regData);
 
     let players = getClientNames()
-    if (players.includes(data.name)) {
+    if (players.includes(regData.name)) {
       let fixer = 1
-      while (players.includes(data.name+" ("+fixer+")")) { fixer +=1 }
-      data.name += " ("+fixer+")"
-      // socket.emit('registered', null)
-      // return
+      while (players.includes(regData.name+" ("+fixer+")")) { fixer +=1 }
+      regData.name += " ("+fixer+")"
     }
 
-    clients[socket.id].name = data.name
-    socket.emit('registered', data.name)
-    broadcast('data', {players: getClientNames()})
-  });
+    clients[socket.id].name = regData.name
+    socket.emit('registered', regData.name)
+    broadcast('players_info', getClientNames())
+    chatLog.push(`${clients[socket.id].name} joined us.`)
+    broadcast('chat', `${clients[socket.id].name} joined us.`)
+  })
+
+  socket.on('chat', message => {
+    // message filtering [size, command, ...]
+    console.log('chat:', message);
+
+    if (clients[socket.id].name != null) {
+      message = `[${clients[socket.id].name}]: ${message}`
+      chatLog.push(message)
+      broadcast('chat', message)
+    }
+  })
 
   socket.on('disconnect', (reason) => {
     console.log(`Disconnecting a user ${socket.id}, reason: '${reason}'`)
@@ -55,9 +74,17 @@ io.on('connection', (socket) => {
       // the disconnection was initiated by the server, you need to reconnect manually
       socket.connect(); // when ???
     }
-    delete clients[socket.id]
-    
-    broadcast('data', {players: getClientNames()})
+
+    if (clients[socket.id].name != null)
+    {
+      chatLog.push(`${clients[socket.id].name} left the party.`)
+      broadcast('chat', `${clients[socket.id].name} left the party.`)
+      delete clients[socket.id]
+      broadcast('players_info', getClientNames())
+    }
+    else {
+      delete clients[socket.id]
+    }
   });
 });
 
