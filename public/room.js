@@ -58,7 +58,11 @@ function init()
     nickname = regNick
   })
 
-  socket.on('disconnect', () => { console.log("FAIIIIL") })
+  socket.on('start', () => {
+    StartGame(players)
+  })
+
+  socket.on('disconnect', (reason) => { console.log("FAIIIIL! " + reason) })
 
   document.onmousedown = function(e) {
     if (e.toElement == canvas) {
@@ -75,8 +79,7 @@ function init()
         }
       }
       else if(e.layerX > 20 && e.layerX < 20+150 && e.layerY > 430 && e.layerY < 430+50) {
-        //console.log("wait")
-        onGameStart()
+        socket.emit('start')
       }
     } else {
       let message = prompt("Enter the message:")

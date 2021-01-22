@@ -1,7 +1,8 @@
 /*global document, addEventListener*/
 /*eslint no-undef: "error"*/
 
-function onGameStart() {
+function StartGame(playersNick) {
+  console.log(nickname)
   const canvas = document.getElementById("canvas")
   const ctx = canvas.getContext("2d");
 
@@ -84,7 +85,7 @@ function onGameStart() {
     get control() { return this.player.control },
     get settings() { return this.player.settings },
     endTurn() {
-      this.activePlayer += 1
+      this.activePlayer++
       if (this.activePlayer >= players.length) this.activePlayer = 0
       this.player.units.forEach((u) => {
         u.avalibleMoves = UNITS[u.type].moves
@@ -94,7 +95,7 @@ function onGameStart() {
 
   var players = [
     {
-      name: "pl1",
+      name: playersNick[0],
       color: "#601E66",
       units: [
         { type: 2, x:6, y:7, avalibleMoves: 0, custody: 0 },
@@ -134,7 +135,7 @@ function onGameStart() {
       }
     },
     {
-      name: "pl2",
+      name: playersNick[1],
       color: "#f01520",
       units: [
         { type: 2, x:10, y:12, avalibleMoves: 0, custody: null },
@@ -186,8 +187,7 @@ function onGameStart() {
     
     if (timePass < lps) {
         return;
-    } else if (timePass > 4 * lps) // hard mistiming
-    {
+    } else if (timePass > 4 * lps) { // hard mistiming
       lastTimeLogic = Date.now();
         timePass = 4 * lps;
     }
@@ -210,8 +210,7 @@ function onGameStart() {
     game.player.mouseCalcCell()
     game.player.mouseCalcPolar()
 
-    if (game.control.mouse.hold != null)
-    {
+    if (game.control.mouse.hold != null) {
       game.control.camera.x = game.control.mouse.hold.x - game.control.mouse.x
       game.control.camera.y = game.control.mouse.hold.y - game.control.mouse.y
     }
@@ -224,10 +223,8 @@ function onGameStart() {
         return;
     }
 
-    if (game.settings.tileScaleTimeExp > 0)
-    {
-      if (game.settings.tileScaleTimeExp > game.settings.scaleSpeed/10) 
-      {
+    if (game.settings.tileScaleTimeExp > 0) {
+      if (game.settings.tileScaleTimeExp > game.settings.scaleSpeed/10) {
         game.settings.tileScaleTimeExp -= timePass
         if (game.settings.tileScaleTimeExp < 0) game.settings.tileScaleTimeExp = 0
         game.control.camera.x -= game.control.mouse.cell.x *lerp(0, game.settings.tileSize - game.settings.tileSizeTarget, 1 - game.settings.tileScaleTimeExp/2/game.settings.scaleSpeed)
@@ -249,8 +246,7 @@ function onGameStart() {
         ctx.fillStyle = TILES[map.tiles[i][j]].color
         ctx.fillRect(canvas.width/2 -game.control.camera.x + j * game.settings.tileSize, canvas.height/2 -game.control.camera.y + i * game.settings.tileSize, game.settings.tileSize, game.settings.tileSize);
 
-        if (game.settings.showGridInfo == 'num')
-        {
+        if (game.settings.showGridInfo == 'num') {
           ctx.fillStyle = "#00002090";
           ctx.fillText(
               ("000" + i).slice(-3),
@@ -266,8 +262,7 @@ function onGameStart() {
             game.settings.tileSize-2
           );
           ctx.fillStyle = "#00000050";
-          if (j == 0)
-          {
+          if (j == 0) {
             ctx.fillRect(canvas.width/2 -game.control.camera.x + j * game.settings.tileSize, canvas.height/2 -game.control.camera.y + i * game.settings.tileSize, 2, 2);
           }
         }
@@ -315,11 +310,13 @@ function onGameStart() {
       case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '0':
         if (e.code.startsWith("Numpad")) {
           if (e.key % 5 != 0) {
-            if (game.player.activeUnit.avalibleMoves == 0) { return }
-            if (e.key % 3 == 1) { game.player.activeUnit.x-=1}
-            else if (e.key % 3 == 0) { game.player.activeUnit.x+=1}
-            if (e.key < 4) { game.player.activeUnit.y+=1}
-            else if (e.key > 6) { game.player.activeUnit.y-=1}
+            console.log('%%',game.player.name,nickname)
+            if (game.player.activeUnit.avalibleMoves == 0 || nickname != game.player.name) { return }
+            socket.emit('playerAction', { player: game.player.name, unit: game.player.control.selectedUint, action: 'move', direction: e.key })
+            if (e.key % 3 == 1) { game.player.activeUnit.x-=1 }
+            else if (e.key % 3 == 0) { game.player.activeUnit.x+=1 }
+            if (e.key < 4) { game.player.activeUnit.y+=1 }
+            else if (e.key > 6) { game.player.activeUnit.y-=1 }
 
             game.player.activeUnit.avalibleMoves -= 1          
             if (game.player.activeUnit.avalibleMoves == 0) { game.player.selectNextUnit() }
@@ -330,7 +327,7 @@ function onGameStart() {
         }
         break
       case 'e':
-        game.endTurn()
+        socket.emit('endTurn')
         break
     }
   }
@@ -366,4 +363,22 @@ function onGameStart() {
     moverSet({key: e.wheelDelta>0?'=':'-'})
   }
 
+  socket.on('nextPlayer', (changes) => {
+    game.endTurn()
+    console.log(`now ${game.player.name} turn`)
+  })
+
+  socket.on('playerAction', (action) => {
+    console.log(`!!! player: ${action.player}, unit: ${action.unit}, action: ${action.action}, direction: ${action.direction}`)
+    for (let p in players) {
+      if (players[p].name != action.player) continue
+      if (action.action != 'move') continue
+      if (action.direction % 3 == 1) { players[p].units[action.unit].x-=1 }
+      else if (action.direction % 3 == 0) { players[p].units[action.unit].x+=1 }
+      if (action.direction < 4) { players[p].units[action.unit].y+=1 }
+      else if (action.direction > 6) { players[p].units[action.unit].y-=1 }
+      
+      break
+    }
+  })
 }

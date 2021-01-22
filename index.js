@@ -7,6 +7,7 @@ const io = require('socket.io')(http);
 app.use(express.static(__dirname +'/public'));
 
 var clients = {}
+var rooms = {"r00001": {clients: [], activePlayer: 0}}
 
 function getClientNames() {
   let players = []
@@ -17,20 +18,19 @@ function getClientNames() {
   return players
 }
 
-function broadcast(signal, data, except = null) {
+// need broadcast in room (when game started), authorized users (for starting only for them, mb other spectator?), for all (new room, server restart, ...)
+function broadcast(signal, data = null, except = []) {
   for (let key in clients) {
-    if (except==null || (typeof(except)=="string" ? clients[key].name!=except : clients[key].name in except))
-    {
-      clients[key].socket.emit(signal, data)
-    }
+    if (except.includes(key)) { continue }
+    clients[key].socket.emit(signal, data)
   }
 }
 
 var chatLog = []
 
 io.on('connection', (socket) => {
-  clients[socket.id] = {socket: socket}
-  console.log(`a user connected, id:${socket.id}, client.id:${socket.client.id}. COUNT: ${Object.keys(clients).length}`);
+  clients[socket.id] = {socket: socket, name: null, room: null}
+  console.log(`a user connected, id:${socket.id}. COUNT: ${Object.keys(clients).length}`);
 
   socket.emit('players_info', getClientNames())
   chatLog.forEach(str => {
@@ -75,8 +75,7 @@ io.on('connection', (socket) => {
       socket.connect(); // when ???
     }
 
-    if (clients[socket.id].name != null)
-    {
+    if (clients[socket.id].name != null) {
       chatLog.push(`${clients[socket.id].name} left the party.`)
       broadcast('chat', `${clients[socket.id].name} left the party.`)
       delete clients[socket.id]
@@ -85,9 +84,39 @@ io.on('connection', (socket) => {
     else {
       delete clients[socket.id]
     }
-  });
-});
+  })
+  
+  socket.on('start', () => {
+    for(let id in clients) {
+      if (clients[id].name != null) {
+        rooms.r00001.clients.push(clients[id]) // better create game here
+        clients[id].room = rooms.r00001 // is cyclic ref good?
+      }
+    }
+    broadcast('start')
+  })
+
+  socket.on('endTurn', () => {
+    let room = clients[socket.id].room
+    
+    console.log(`test ${room.activePlayer}, ${room != null && room.clients[room.activePlayer].socket == socket}, ${room.clients.length}.`)
+    if (room != null && room.clients[room.activePlayer].socket == socket) {
+      room.activePlayer++
+      if (room.activePlayer >= room.clients.length) room.activePlayer = 0
+      console.log(`now ${room.activePlayer} turn.`)
+      broadcast('nextPlayer')
+    }
+  })
+
+  socket.on('playerAction', (action) => {
+    let room = clients[socket.id].room
+    console.log(`${clients[socket.id].name} /${action.player}\\ -> ${action.player}, ${action.unit}, ${action.action}, ${action.direction}`)
+    if (room != null && room.clients[room.activePlayer].socket == socket) {
+      broadcast('playerAction', action, [socket.id]) // except himself
+    }
+  })
+})
 
 http.listen(globalConfig.PORT, globalConfig.HOST, () => {
-  console.log(`listening on '${globalConfig.PORT}:${globalConfig.HOST}`);
-});
+  console.log(`listening on '${globalConfig.PORT}:${globalConfig.HOST}`)
+})
