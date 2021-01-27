@@ -196,26 +196,6 @@ function StartGame(playersNick) {
     lastTimeLogic += timePass; // state logic computation completed at START of function
   }, 10);
 
-  /// --- EVENTS ---
-
-  document.addEventListener('mousemove', onMouseUpdate, false);
-  document.addEventListener('mouseenter', onMouseUpdate, false);
-
-  function onMouseUpdate(e) {
-    // if (e.toElement != canvas) return;
-    
-    game.control.mouse.x = e.x - canvas.offsetLeft;
-    game.control.mouse.y = e.y - canvas.offsetTop;
-    
-    game.player.mouseCalcCell()
-    game.player.mouseCalcPolar()
-
-    if (game.control.mouse.hold != null) {
-      game.control.camera.x = game.control.mouse.hold.x - game.control.mouse.x
-      game.control.camera.y = game.control.mouse.hold.y - game.control.mouse.y
-    }
-  }
-
   var lastTimeGraphic = Date.now();
   setInterval(function() {
     let timePass = Date.now() - lastTimeGraphic; // guess will better change "nextTimeRender > Date.now()"
@@ -288,6 +268,26 @@ function StartGame(playersNick) {
     lastTimeGraphic += timePass; // finished drawing data at the start of the function
   }, 10);
 
+  /// --- EVENTS ---
+
+  document.addEventListener('mousemove', onMouseUpdate, false);
+  document.addEventListener('mouseenter', onMouseUpdate, false);
+
+  function onMouseUpdate(e) {
+    // if (e.toElement != canvas) return;
+    
+    game.control.mouse.x = e.x - canvas.offsetLeft;
+    game.control.mouse.y = e.y - canvas.offsetTop;
+    
+    game.player.mouseCalcCell()
+    game.player.mouseCalcPolar()
+
+    if (game.control.mouse.hold != null) {
+      game.control.camera.x = game.control.mouse.hold.x - game.control.mouse.x
+      game.control.camera.y = game.control.mouse.hold.y - game.control.mouse.y
+    }
+  }
+
   function moverSet(e) {
     // if (e.ctrlKey || e.altKey) return
     if ('type' in e && e['type'] == 'keydown') { console.log("key pressed '"+e.key+"'") }
@@ -357,6 +357,10 @@ function StartGame(playersNick) {
   }
   document.body.onmouseup = function(/*e*/) {
     game.control.mouse.hold = null
+
+    // centring camera on a cell
+    game.control.camera.x = (Math.floor(game.control.camera.x / game.settings.tileSize) + 0.5) * game.settings.tileSize
+    game.control.camera.y = (Math.floor(game.control.camera.y / game.settings.tileSize) + 0.5) * game.settings.tileSize
   }
 
   canvas.onmousewheel = function(e) {
