@@ -1,14 +1,42 @@
-/*global document, addEventListener*/
-/*eslint no-undef: "error"*/
+const GameState = {
+  ROOM: 0,
+  WORKS: 1,
+  PAUSED: 2
+}
+
+const game = {
+  state: GameState.ROOM,
+  camera: {x:10, y:10},
+  tileRB: 50,
+  tileShift: 0,
+
+  players: {},
+  map: {width:0, height:0},  
+  
+  start: function(config) {
+    this.map = config.map
+    this.players = config.players 
+    this.state = GameState.WORKS
+  },
+  logic: function(timePass) {
+
+  },
+
+  draw: function(ctx, ctxWidth, ctxHeight, timePass) {
+    
+  }
+}
+
+
 
 function StartGame(playersNick) {
-  console.log(nickname)
+  console.log(room.nickname)
   const canvas = document.getElementById("canvas")
   const ctx = canvas.getContext("2d");
 
   const TILES = {
     0: { name: "Ocean", color: "#404F7A" },
-    1: { name: "Grassland", color: "#4D8F43" },
+    1: { name: "Grassland", color: "#4D8F43", img: "grass.png" },
     2: { name: "River", color: "#24BED6" },
     3: { name: "Hills", color: "#76A86C" } ,
     4: { name: "Forest", color: "#2A5E24" },
@@ -23,10 +51,6 @@ function StartGame(playersNick) {
 
   function HotLog(txt) {
     document.getElementById("hotLog").innerHTML = txt;
-  }
-
-  function lerp(v1, v2, w) {
-      return v1 + w * (v2 - v1);
   }
 
   // 15x12 // 24*40x22,5
@@ -224,7 +248,13 @@ function StartGame(playersNick) {
       for (let j = Math.floor((game.control.camera.x - canvas.width/2)/game.settings.tileSize); j < (game.control.camera.x + canvas.width/2)/game.settings.tileSize; j++) {
         if (i < 0 || i >= map.tiles.length || j < 0 || j >= map.tiles[i].length) {continue;}
         ctx.fillStyle = TILES[map.tiles[i][j]].color
-        ctx.fillRect(canvas.width/2 -game.control.camera.x + j * game.settings.tileSize, canvas.height/2 -game.control.camera.y + i * game.settings.tileSize, game.settings.tileSize, game.settings.tileSize);
+        if(map.tiles[i][j] == 1) {
+          let img = new Image();
+          img.src = TILES[map.tiles[i][j]].img
+          ctx.drawImage(img, canvas.width/2 -game.control.camera.x + j * game.settings.tileSize, canvas.height/2 -game.control.camera.y + i * game.settings.tileSize, game.settings.tileSize, game.settings.tileSize);
+        } else {
+          ctx.fillRect(canvas.width/2 -game.control.camera.x + j * game.settings.tileSize, canvas.height/2 -game.control.camera.y + i * game.settings.tileSize, game.settings.tileSize, game.settings.tileSize);
+        }
 
         if (game.settings.showGridInfo == 'num') {
           ctx.fillStyle = "#00002090";
@@ -310,8 +340,8 @@ function StartGame(playersNick) {
       case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '0':
         if (e.code.startsWith("Numpad")) {
           if (e.key % 5 != 0) {
-            console.log('%%',game.player.name,nickname)
-            if (game.player.activeUnit.avalibleMoves == 0 || nickname != game.player.name) { return }
+            console.log('%%',game.player.name,room.nickname)
+            if (game.player.activeUnit.avalibleMoves == 0 || room.nickname != game.player.name) { return }
             socket.emit('playerAction', { player: game.player.name, unit: game.player.control.selectedUint, action: 'move', direction: e.key })
             if (e.key % 3 == 1) { game.player.activeUnit.x-=1 }
             else if (e.key % 3 == 0) { game.player.activeUnit.x+=1 }
