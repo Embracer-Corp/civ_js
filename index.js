@@ -1,13 +1,15 @@
-const globalConfig = require('./config')
-const express = require('express')
-const app = express()
-const http = require('http').createServer(app)
-const server = require('./server/server')
+const globalConfig = require("./config");
+const express = require("express");
+const app = express();
+const http = require("http").createServer(app);
+const server = require("./server/server");
 
-app.use(express.static(__dirname +'/public'));
+app.use(express.static(__dirname + "/public"));
 
-server.init(http)
+server.init(http);
 
 http.listen(globalConfig.PORT, globalConfig.HOST, () => {
-  console.log(`listening on '${globalConfig.HOST}:${globalConfig.PORT}`)
-})
+  console.log(
+    `----------\r\nServer start on '${globalConfig.HOST}:${globalConfig.PORT}'`
+  );
+});
